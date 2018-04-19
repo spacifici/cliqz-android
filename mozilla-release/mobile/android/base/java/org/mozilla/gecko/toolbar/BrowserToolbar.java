@@ -125,6 +125,10 @@ public abstract class BrowserToolbar extends ThemedRelativeLayout
     protected boolean isSwitchingTabs;
     protected final ThemedImageButton tabsButton;
 
+    /* Cliqz start */
+    protected final Ghosty ghostyButton;
+    /* Cliqz end */
+
     private AnimatedProgressBar progressBar;
     protected final TabCounter tabsCounter;
     protected final View menuButton;
@@ -197,6 +201,10 @@ public abstract class BrowserToolbar extends ThemedRelativeLayout
         tabsButton = (ThemedImageButton) findViewById(R.id.tabs);
         tabsCounter = (TabCounter) findViewById(R.id.tabs_counter);
         tabsCounter.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+
+        /* Cliqz start */
+        ghostyButton = (Ghosty) findViewById(R.id.ghosty);
+        /* Cliqz end */
 
         menuButton = findViewById(R.id.menu);
 
