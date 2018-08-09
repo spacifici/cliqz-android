@@ -2,21 +2,25 @@
 @Library('cliqz-shared-library@v1.2') _
 def matrix = [
     'cliqz':[
+        'arch': 'x86',
         'bundleid': 'com.cliqz.browser',
         'target': 'i386-linux-android',
         'test': true,
     ],
     'ghostery':[
+        'arch': 'x86',
         'bundleid': 'com.ghostery.android.ghostery',
         'target': 'i386-linux-android',
         'test': true,
     ],
     'cliqz-alpha':[
+        'arch': 'arm',
         'bundleid': 'com.cliqz.browser.alpha',
         'target': 'arm-linux-androideabi',
         'test': false,
     ],
     'ghostery-alpha':[
+        'arch': 'arm',
         'bundleid': 'com.ghostery.android.alpha',
         'target': 'arm-linux-androideabi',
         'test': false,
@@ -25,6 +29,7 @@ def matrix = [
 
 def build(Map m){
     def androidtarget = m.target
+    def buildarch = m.buildarch
     def flavorname = m.name
     def bundleid = m.bundleid
     def nodeLabel = 'us-east-1 && ubuntu && docker && !gpu'
@@ -33,6 +38,19 @@ def build(Map m){
         node(nodeLabel){
             def dockerTag = ""
             def apk = ""
+            stage('Checkout') {
+                checkout scm
+                dockerTag = readFile('mozilla-release/browser/config/version_display.txt').trim()
+            }
+            stage('Check & Build Artifacts'){
+                def url = "https://repository.cliqz.com/dist/android/artifacts/${dockerTag}"
+                try {
+                    def targetAPK = sh(returnStdout: true, 
+                        script: """wget -S --spider '${url}/${buildarch}/cliqz-target.apk' 2>&1 | grep 'HTTP/1.1 200 OK'""").trim()[-2..-1]
+                } catch(e) {
+                    createArtifact(dockerTag, buildarch, androidtarget)
+                }
+            }
             setupTestInstance(
                 test,
                 "ami-13050368",
@@ -43,10 +61,6 @@ def build(Map m){
                 "subnet-341ff61f",
                 "us-east-1"
             ) {
-                stage('Checkout') {
-                    checkout scm
-                    dockerTag = readFile('mozilla-release/browser/config/version_display.txt').trim()
-                }
                 def baseImageName = "browser-f/android:${dockerTag}"
                 docker.withRegistry('https://141047255820.dkr.ecr.us-east-1.amazonaws.com') {
                     docker.image("${baseImageName}").inside {
@@ -77,6 +91,9 @@ def build(Map m){
                                     cd mozilla-release
                                     ./mach clobber
                                     ./mach build
+                                    for lang in `ls ../l10n/`; do
+                                        ./mach build chrome-$lang
+                                    done
                                     ./mach package
                                 '''
                             }
@@ -190,6 +207,7 @@ def build(Map m){
 def stepsForParallelBuilds = helpers.entries(matrix).collectEntries{
     [("Building ${it[0]}"):build(
         name: it[0],
+        buildarch: it[1]['arch'],
         bundleid: it[1]['bundleid'],
         target:it[1]['target'],
         test:it[1]['test']
@@ -297,5 +315,77 @@ def archiveTestResults() {
         zip archive: true, dir: 'autobots/screenshots', glob: '', zipFile: 'screenshots.zip'
     } catch(e) {
         print e
+    }
+}
+
+def createArtifact(String version, String arch, String target){
+    def apk = ""
+    try {
+        def baseImageName = "browser-f/android:${version}"
+        docker.withRegistry('https://141047255820.dkr.ecr.us-east-1.amazonaws.com') {
+            docker.image("${baseImageName}").inside {
+                stage('Download cache') {
+                    withCredentials([[
+                            $class: 'AmazonWebServicesCredentialsBinding',
+                            accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                            credentialsId: 'd7e38c4a-37eb-490b-b4da-2f53cc14ab1b',
+                            secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+                        def s3Path = "s3://repository.cliqz.com/dist/android/cache"
+                        def cachePath = ".gradle/caches"
+                        sh """#!/bin/bash -l
+                            pip install awscli --upgrade --user
+                            cd
+                            aws s3 cp --acl public-read --acl bucket-owner-full-control ${s3Path} ${cachePath} --recursive
+                        """
+                    }
+                }
+                stage('Build Artifacts') {
+                    withEnv(["ANDROID_TARGET=${target}"]) {
+                        sh """#!/bin/bash -l
+                            set -e
+                            set -x
+                            cp mozconfigs/artifact.mozconfig mozilla-release/mozconfig
+                            cd mozilla-release
+                            ./mach -v build
+                            ./mach -v package
+                        """
+                    }
+                }
+                stage('Upload to S3'){
+                    apk = sh(returnStdout: true,
+                        script: """cd mozilla-release/objdir-frontend-android/dist && \
+                        find *.apk -name 'target*' -not -name '*-unsigned-*'""").trim()
+                    sh "cp mozilla-release/objdir-frontend-android/dist/${apk} target.apk"
+                    archiveArtifacts allowEmptyArchive: true, artifacts: 'target.apk'
+                    withCredentials([
+                        [
+                            $class: 'AmazonWebServicesCredentialsBinding',
+                            accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                            credentialsId: 'd7e38c4a-37eb-490b-b4da-2f53cc14ab1b',
+                            secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                        ]
+                    ]) {
+                        def s3Path = "s3://repository.cliqz.com/dist/android/artifacts/${version}/${arch}"
+                        if (!params.REPLACE_TARGET) {
+                            sh """#!/bin/bash -l
+                                aws s3 rm $s3Path/cliqz-target.apk
+                            """
+                        }
+                        sh """#!/bin/bash -l
+                            aws s3 cp target.apk $s3Path/cliqz-target.apk
+                        """
+                    }
+                }
+            }
+        }
+    }
+    finally {
+        stage('Clean Up') {
+            sh '''#!/bin/bash
+                rm -f target.apk
+                rm -f mozilla-release/mozconfig
+                rm -rf mozilla-release/objdir-frontend-android
+            '''
+        }
     }
 }
