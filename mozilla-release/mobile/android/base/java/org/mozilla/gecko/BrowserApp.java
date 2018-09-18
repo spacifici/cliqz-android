@@ -341,6 +341,9 @@ public class BrowserApp extends GeckoApp
     // See: Bug 1358554
     private boolean mShowingToolbarChromeForActionBar;
 
+    private SafeIntent safeStartingIntent;
+    private boolean isInAutomation;
+
     private static class MenuItemInfo implements Parcelable {
         public int id;
         public String label;
@@ -799,10 +802,10 @@ public class BrowserApp extends GeckoApp
 
         showSplashScreen = true;
 
-        final SafeIntent intent = new SafeIntent(getIntent());
-        final boolean isInAutomation = IntentUtils.getIsInAutomationFromEnvironment(intent);
+        safeStartingIntent = new SafeIntent(getIntent());
+        isInAutomation = IntentUtils.getIsInAutomationFromEnvironment(safeStartingIntent);
 
-        GeckoProfile.setIntentArgs(intent.getStringExtra("args"));
+        GeckoProfile.setIntentArgs(safeStartingIntent.getStringExtra("args"));
 
         if (!isInAutomation && AppConstants.MOZ_ANDROID_DOWNLOAD_CONTENT_SERVICE) {
             // Kick off download of app content as early as possible so that in the best case it's
@@ -822,7 +825,7 @@ public class BrowserApp extends GeckoApp
           return;
         }
 
-        initSwitchboard(this, intent, isInAutomation);
+        initSwitchboardAndMma(this, safeStartingIntent, isInAutomation);
         initTelemetryUploader(isInAutomation);
 
         mBrowserChrome = (ViewGroup) findViewById(R.id.browser_chrome);
@@ -895,18 +898,18 @@ public class BrowserApp extends GeckoApp
         });
         mBrowserToolbar.setTabHistoryController(tabHistoryController);
 
-        final String action = intent.getAction();
+        final String action = safeStartingIntent.getAction();
         if (Intent.ACTION_VIEW.equals(action)) {
             // Show the target URL immediately in the toolbar.
-            mBrowserToolbar.setTitle(intent.getDataString());
+            mBrowserToolbar.setTitle(safeStartingIntent.getDataString());
 
-            showTabQueuePromptIfApplicable(intent);
+            showTabQueuePromptIfApplicable(safeStartingIntent);
         } else if (ACTION_VIEW_MULTIPLE.equals(action) && savedInstanceState == null) {
             // We only want to handle this intent if savedInstanceState is null. In the case where
             // savedInstanceState is not null this activity is being re-created and we already
             // opened tabs for the URLs the last time. Our session store will take care of restoring
             // them.
-            openMultipleTabsFromIntent(intent);
+            openMultipleTabsFromIntent(safeStartingIntent);
         } else if (GuestSession.NOTIFICATION_INTENT.equals(action)) {
             GuestSession.onNotificationIntentReceived(this);
         } else if (TabQueueHelper.LOAD_URLS_ACTION.equals(action)) {
@@ -1007,6 +1010,7 @@ public class BrowserApp extends GeckoApp
             "Updater:Launch",
             "Sanitize:Finished",
             "Sanitize:OpenTabs",
+            "NotificationSettings:FeatureTipsStatusUpdated",
             /* Cliqz start */
             "Search:GetHistory",
             "Search:OpenLink",
@@ -1202,7 +1206,7 @@ public class BrowserApp extends GeckoApp
      * Initializes the default Switchboard URLs the first time.
      * @param intent
      */
-    private void initSwitchboard(final Context context, final SafeIntent intent, final boolean isInAutomation) {
+    private void initSwitchboardAndMma(final Context context, final SafeIntent intent, final boolean isInAutomation) {
         if (isInAutomation) {
             Log.d(LOGTAG, "Switchboard disabled - in automation");
             return;
@@ -1218,8 +1222,7 @@ public class BrowserApp extends GeckoApp
             protected Void doInBackground(Void... params) {
                 super.doInBackground(params);
                 SwitchBoard.loadConfig(context, serverUrl);
-                if (SwitchBoard.isInExperiment(context, Experiments.LEANPLUM) &&
-                        GeckoPreferences.getBooleanPref(context, GeckoPreferences.PREFS_HEALTHREPORT_UPLOAD_ENABLED, true)) {
+                if (GeckoPreferences.isMmaAvailableAndEnabled(context)) {
                     // Do LeanPlum start/init here
                     MmaDelegate.init(BrowserApp.this);
                 }
@@ -1964,6 +1967,7 @@ public class BrowserApp extends GeckoApp
             "Updater:Launch",
             "Sanitize:Finished",
             "Sanitize:OpenTabs",
+            "NotificationSettings:FeatureTipsStatusUpdated",
             /* Cliqz start */
             "Search:GetHistory",
             "Search:OpenLink",
@@ -2568,6 +2572,14 @@ public class BrowserApp extends GeckoApp
 
                 break;
 
+            case "NotificationSettings:FeatureTipsStatusUpdated":
+                if (message.getBoolean("isMmaEnabled")) {
+                    initSwitchboardAndMma(this, safeStartingIntent, isInAutomation);
+                } else {
+                    MmaDelegate.stop();
+                }
+                break;
+
             /* Cliqz start */
             case "Search:GetHistory":
                 final GeckoBundle query = message.getBundle("data");
@@ -2645,6 +2657,7 @@ public class BrowserApp extends GeckoApp
                         .show();
                 break;
             /* Cliqz end */
+
             default:
                 super.handleMessage(event, message, callback);
                 break;
