@@ -37,6 +37,8 @@ import org.mozilla.gecko.Tab;
 import org.mozilla.gecko.Tabs;
 import org.mozilla.gecko.myoffrz.MyOffrzLoader;
 import org.mozilla.gecko.preferences.GeckoPreferences;
+import org.mozilla.gecko.preferences.PreferenceManager;
+import org.mozilla.gecko.widget.themed.ThemedImageView;
 import org.mozilla.gecko.widget.themed.ThemedLinearLayout;
 
 /**
@@ -44,12 +46,13 @@ import org.mozilla.gecko.widget.themed.ThemedLinearLayout;
  * tabs that are displayed in {@code TabMenuStrip}.
  */
 class TabMenuStripLayout extends ThemedLinearLayout
-                         implements View.OnFocusChangeListener, Tabs.OnTabsChangedListener {
+                         implements View.OnFocusChangeListener, Tabs.OnTabsChangedListener, SharedPreferences.OnSharedPreferenceChangeListener {
 
     private TabMenuStrip.OnTitleClickListener onTitleClickListener;
     private Drawable strip;
     /*Cliqz Start*/
     private ImageView selectedView;
+    private final PreferenceManager mPreferenceManager;
     /*Cliqz End*/
 
     // Data associated with the scrolling of the strip drawable.
@@ -93,6 +96,11 @@ class TabMenuStripLayout extends ThemedLinearLayout
         }
 
         setWillNotDraw(false);
+        /* Cliqz start */
+        mPreferenceManager = PreferenceManager.getInstance(context);
+        setLightTheme(mPreferenceManager.isLightThemeEnabled());
+        mPreferenceManager.registerOnSharedPreferenceChangeListener(this);
+        /* Cliqz start */
     }
 
     @Override
@@ -112,13 +120,13 @@ class TabMenuStripLayout extends ThemedLinearLayout
     /*Cliqz Start*/
     @SuppressLint("ResourceType")
     void onAddPagerView(@DrawableRes int iconId) {
-        final ImageView imageView = (ImageView) LayoutInflater.from(getContext()).inflate(R.layout.tab_menu_strip, this, false);
+        final ThemedImageView imageView = (ThemedImageView) LayoutInflater.from(getContext()).inflate(R.layout.tab_menu_strip, this, false);
         imageView.setId(iconId); //for automation test purpose
         imageView.setImageResource(iconId);
         addView(imageView);
         imageView.setOnClickListener(new ViewClickListener(getChildCount() - 1));
         imageView.setOnFocusChangeListener(this);
-
+        imageView.setLightTheme();
         // The following is an hack, I do not particularly like it but I can't find a better way
         // that does not contemplate rewriting the HomePager with a more suitable one.
         final Context context = getContext();
@@ -358,6 +366,11 @@ class TabMenuStripLayout extends ThemedLinearLayout
         public void onLoaderReset(Loader<JSONObject> loader) {
 
         }
+    }
+
+    @Override
+    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+        setLightTheme(mPreferenceManager.isLightThemeEnabled());
     }
     /* Cliqz end */
 }

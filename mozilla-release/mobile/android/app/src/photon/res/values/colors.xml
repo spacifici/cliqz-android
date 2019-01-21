@@ -360,6 +360,7 @@
     
     <!-- Light Theme -->
     <color name="light_theme_ghost_color">#0D0F22</color>
+    <color name="light_theme_font_color">#97A4AE</color>
     <!-- Cliqz end -->
 
 </resources>
