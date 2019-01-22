@@ -71,11 +71,11 @@ public class TabMenuStrip extends HorizontalScrollView
     }
 
     @Override
-    /*Cliqz Start*/
+    /* Cliqz Start */
     public void onAddPagerView(@DrawableRes int iconId) {
         layout.onAddPagerView(iconId);
     }
-    /*Cliqz End*/
+    /* Cliqz End */
 
     @Override
     public void removeAllPagerViews() {

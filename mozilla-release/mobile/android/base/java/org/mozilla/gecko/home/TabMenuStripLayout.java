@@ -126,7 +126,7 @@ class TabMenuStripLayout extends ThemedLinearLayout
         addView(imageView);
         imageView.setOnClickListener(new ViewClickListener(getChildCount() - 1));
         imageView.setOnFocusChangeListener(this);
-        imageView.setLightTheme();
+        imageView.setLightTheme(mPreferenceManager.isLightThemeEnabled());
         // The following is an hack, I do not particularly like it but I can't find a better way
         // that does not contemplate rewriting the HomePager with a more suitable one.
         final Context context = getContext();

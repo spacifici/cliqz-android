@@ -266,6 +266,8 @@ public class GeckoPreferences
     // set reference to querySuggestions and it's group so we can hide/show it
     private Preference mSearchQuerySuggestionsPref;
     private PreferenceGroup mSearchQuerySuggestionsPrefGroup;
+    // Same thing for the Start Tab group
+    private PreferenceGroup mStartTabPrefGroup;
 
     public static final String PREFS_APP_LAUNCH_COUNT = "app_launch_count";
     public static final String PREFS_HELP_SUPPORT = NON_PREF_PREFIX + "help.support";
@@ -1124,6 +1126,7 @@ public class GeckoPreferences
                         i--;
                     }
                 } else if(PREFS_BLUE_THEME.equals(key)) {
+                    mStartTabPrefGroup = preferences;
                     pref.setOnPreferenceChangeListener(this);
                 }
                 /* Cliqz end */
@@ -1470,11 +1473,11 @@ public class GeckoPreferences
             // Tell Gecko to transmit the current search engine data again, so
             // BrowserSearch is notified immediately about the new enabled state.
             EventDispatcher.getInstance().dispatch("SearchEngines:GetVisible", null);
-        } else if(PREFS_BLUE_THEME.equals(prefName)) {
+        } else if(PREFS_BLUE_THEME.equals(prefName) && mStartTabPrefGroup != null) {
             if((boolean)newValue == true) {
-                preference.getParent().addPreference(showBackgroundPref);
+                mStartTabPrefGroup.addPreference(showBackgroundPref);
             } else {
-                preference.getParent().removePreference(showBackgroundPref);
+                mStartTabPrefGroup.removePreference(showBackgroundPref);
             }
         }
         /* Cliqz End */
@@ -1491,8 +1494,8 @@ public class GeckoPreferences
             ((ListPreference) preference).setSummary(newEntry);
             /* CLiqz start */
             if(PREFS_SEARCH_REGIONAL.equals(prefName)){
-                Preference searchQuerySuggestionPref =  findPreference
-                        (PREFS_SEARCH_QUERY_SUGGESTIONS);
+                final Preference searchQuerySuggestionPref =
+                        findPreference(PREFS_SEARCH_QUERY_SUGGESTIONS);
                 if(newValue != ((ListPreference) preference).getEntryValues()[0]){
                     mSearchQuerySuggestionsPrefGroup.removePreference(mSearchQuerySuggestionsPref);
                     ((CheckBoxPreference)mSearchQuerySuggestionsPref).setChecked(false);

@@ -112,61 +112,61 @@ abstract class BrowserToolbarPhoneBase extends BrowserToolbar {
     }
 
     /* Cliqz Start o/
-   @Override
-   public void setPrivateMode(final boolean isPrivate) {
-       super.setPrivateMode(isPrivate);
+    @Override
+    public void setPrivateMode(final boolean isPrivate) {
+        super.setPrivateMode(isPrivate);
+ 
+        ((ThemedImageButton) editCancel).setPrivateMode(isPrivate);
+    }
+    /o Cliqz End */
+ 
+    @Override
+    protected boolean isTabsButtonOffscreen() {
+        return isEditing();
+    }
+ 
+    @Override
+    public boolean addActionItem(final View actionItem) {
+        // We have no action item bar.
+        return false;
+    }
+ 
+    @Override
+    public void removeActionItem(final View actionItem) {
+        // We have no action item bar.
+    }
+ 
+    @Override
+    protected void updateNavigationButtons(final Tab tab) {
+        // We have no navigation buttons so do nothing.
+    }
+ 
+    @Override
+    public void triggerTabsPanelTransition(final PropertyAnimator animator, final boolean areTabsShown) {
+        if (areTabsShown) {
+            ViewHelper.setAlpha(tabsCounter, 0.0f);
+            ViewHelper.setAlpha(menuButton, 0.0f);
+            return;
+        }
+ 
+        final PropertyAnimator buttonsAnimator =
+                new PropertyAnimator(animator.getDuration(), buttonsInterpolator);
+        buttonsAnimator.attach(tabsCounter,
+                               PropertyAnimator.Property.ALPHA,
+                               1.0f);
+ 
+        buttonsAnimator.attach(menuButton,
+                               PropertyAnimator.Property.ALPHA,
+                               1.0f);
+ 
+        buttonsAnimator.start();
+    }
 
-       ((ThemedImageButton) editCancel).setPrivateMode(isPrivate);
-   }
-   /o Cliqz End */
-
-   @Override
-   protected boolean isTabsButtonOffscreen() {
-       return isEditing();
-   }
-
-   @Override
-   public boolean addActionItem(final View actionItem) {
-       // We have no action item bar.
-       return false;
-   }
-
-   @Override
-   public void removeActionItem(final View actionItem) {
-       // We have no action item bar.
-   }
-
-   @Override
-   protected void updateNavigationButtons(final Tab tab) {
-       // We have no navigation buttons so do nothing.
-   }
-
-   @Override
-   public void triggerTabsPanelTransition(final PropertyAnimator animator, final boolean areTabsShown) {
-       if (areTabsShown) {
-           ViewHelper.setAlpha(tabsCounter, 0.0f);
-           ViewHelper.setAlpha(menuButton, 0.0f);
-           return;
-       }
-
-       final PropertyAnimator buttonsAnimator =
-               new PropertyAnimator(animator.getDuration(), buttonsInterpolator);
-       buttonsAnimator.attach(tabsCounter,
-                              PropertyAnimator.Property.ALPHA,
-                              1.0f);
-
-       buttonsAnimator.attach(menuButton,
-                              PropertyAnimator.Property.ALPHA,
-                              1.0f);
-
-       buttonsAnimator.start();
-   }
-
-   /**
-    * Returns the number of pixels the url bar translating edge
-    * needs to translate to the right to enter its editing mode state.
-    * A negative value means the edge must translate to the left.
-    */
+    /**
+     * Returns the number of pixels the url bar translating edge
+     * needs to translate to the right to enter its editing mode state.
+     * A negative value means the edge must translate to the left.
+     */
     protected int getUrlBarEntryTranslation() {
         // Find the distance from the right-edge of the url bar (where we're translating from) to
         // the left-edge of the cancel button (where we're translating to; note that the cancel
