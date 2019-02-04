@@ -5,65 +5,28 @@
 
 package org.mozilla.gecko.home;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import android.content.SharedPreferences;
-
-import org.mozilla.gecko.EventDispatcher;
-import org.mozilla.gecko.GeckoSharedPrefs;
-import org.mozilla.gecko.PrefsHelper;
-import org.mozilla.gecko.R;
-import org.mozilla.gecko.SuggestClient;
-import org.mozilla.gecko.Tab;
-import org.mozilla.gecko.Tabs;
-import org.mozilla.gecko.Telemetry;
-import org.mozilla.gecko.TelemetryContract;
-import org.mozilla.gecko.annotation.RobocopTarget;
-import org.mozilla.gecko.db.BrowserContract;
-import org.mozilla.gecko.db.BrowserContract.History;
-import org.mozilla.gecko.db.BrowserContract.URLColumns;
-import org.mozilla.gecko.home.HomePager.OnUrlOpenListener;
-import org.mozilla.gecko.home.SearchLoader.SearchCursorLoader;
-import org.mozilla.gecko.preferences.GeckoPreferences;
-import org.mozilla.gecko.preferences.PreferenceManager;
-import org.mozilla.gecko.toolbar.AutocompleteHandler;
-import org.mozilla.gecko.util.AppBackgroundManager;
-import org.mozilla.gecko.util.BundleEventListener;
-import org.mozilla.gecko.util.EventCallback;
-import org.mozilla.gecko.util.GeckoBundle;
-import org.mozilla.gecko.util.StringUtils;
-import org.mozilla.gecko.util.ThreadUtils;
-
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.Context;
-import android.graphics.Typeface;
-import android.support.annotation.NonNull;
-import android.support.v4.content.ContextCompat;
-import android.text.Spannable;
-import android.text.SpannableStringBuilder;
-import android.text.style.StyleSpan;
-import android.view.ContextMenu.ContextMenuInfo;
+import android.content.SharedPreferences;
 import android.database.Cursor;
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.v4.app.LoaderManager.LoaderCallbacks;
 import android.support.v4.content.AsyncTaskLoader;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.content.Loader;
+import android.text.Spannable;
+import android.text.SpannableStringBuilder;
 import android.text.TextUtils;
+import android.text.style.StyleSpan;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.ContextMenu;
+import android.view.ContextMenu.ContextMenuInfo;
 import android.view.LayoutInflater;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -77,9 +40,46 @@ import android.view.animation.AccelerateInterpolator;
 import android.view.animation.Animation;
 import android.view.animation.TranslateAnimation;
 import android.widget.AdapterView;
+import android.widget.BaseAdapter;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
+
+import org.mozilla.gecko.EventDispatcher;
+import org.mozilla.gecko.GeckoSharedPrefs;
+import org.mozilla.gecko.PrefsHelper;
+import org.mozilla.gecko.R;
+import org.mozilla.gecko.SuggestClient;
+import org.mozilla.gecko.Tab;
+import org.mozilla.gecko.Tabs;
+import org.mozilla.gecko.Telemetry;
+import org.mozilla.gecko.TelemetryContract;
+import org.mozilla.gecko.annotation.RobocopTarget;
+import org.mozilla.gecko.db.BrowserContract;
+import org.mozilla.gecko.db.BrowserContract.History;
+import org.mozilla.gecko.home.CliqzSearch.Keys;
+import org.mozilla.gecko.home.CliqzSearch.Types;
+import org.mozilla.gecko.preferences.GeckoPreferences;
+import org.mozilla.gecko.preferences.PreferenceManager;
+import org.mozilla.gecko.toolbar.AutocompleteHandler;
+import org.mozilla.gecko.util.AppBackgroundManager;
+import org.mozilla.gecko.util.BundleEventListener;
+import org.mozilla.gecko.util.EventCallback;
+import org.mozilla.gecko.util.GeckoBundle;
+import org.mozilla.gecko.util.StringUtils;
+import org.mozilla.gecko.util.ThreadUtils;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Fragment that displays frecency search results in a ListView.
@@ -118,6 +118,10 @@ public class BrowserSearch extends HomeFragment
     private static final int LOADER_ID_SUGGESTION = 1;
     private static final int LOADER_ID_SAVED_SUGGESTION = 2;
 
+    /* Cliqz Start */
+    private static final int LOADER_ID_CLIQZ = 3;
+    /* Cliqz End */
+
     // Timeout for the suggestion client to respond
     private static final int SUGGESTION_TIMEOUT = 3000;
 
@@ -139,8 +143,11 @@ public class BrowserSearch extends HomeFragment
     // Holds the current search term to use in the query
     private volatile String mSearchTerm;
 
+    /* Cliqz Start */
     // Adapter for the list of search results
-    private SearchAdapter mAdapter;
+    // private SearchAdapter mAdapter;
+    private CliqzSearchAdapter mAdapter;
+    /* Cliqz End */
 
     // The view shown by the fragment
     private LinearLayout mView;
@@ -174,8 +181,12 @@ public class BrowserSearch extends HomeFragment
     // Whether history suggestions are enabled or not
     private boolean mSavedSearchesEnabled;
 
-    // Callbacks used for the search loader
-    private CursorLoaderCallbacks mCursorLoaderCallbacks;
+    /* Cliqz Start */
+    // Disabled - Callbacks used for the search loader
+    // private CursorLoaderCallbacks mCursorLoaderCallbacks;
+    // Callbacks from Cliqz Search
+    private CliqzSearchCallbacks mCliqzSearchCallbacks;
+    /* Cliqz End */
 
     // Callbacks used for the search suggestion loader
     private SearchEngineSuggestionLoaderCallbacks mSearchEngineSuggestionLoaderCallbacks;
@@ -359,6 +370,7 @@ public class BrowserSearch extends HomeFragment
 
                 // Account for the search engine rows.
                 position -= getPrimaryEngineCount();
+                /* TODO: Cliqz - To fix o/
                 final Cursor c = mAdapter.getCursor(position);
                 final String url = c.getString(c.getColumnIndexOrThrow(URLColumns.URL));
 
@@ -366,6 +378,7 @@ public class BrowserSearch extends HomeFragment
 
                 // This item is a TwoLinePageRow, so we allow switch-to-tab.
                 mUrlOpenListener.onUrlOpen(url, EnumSet.of(OnUrlOpenListener.Flags.ALLOW_SWITCH_TO_TAB));
+                /o Cliqz End */
             }
         });
 
@@ -482,15 +495,18 @@ public class BrowserSearch extends HomeFragment
         super.onActivityCreated(savedInstanceState);
 
         // Initialize the search adapter
-        mAdapter = new SearchAdapter(getActivity());
+        mAdapter = new CliqzSearchAdapter(getActivity());
         mList.setAdapter(mAdapter);
 
         // Only create an instance when we need it
         mSearchEngineSuggestionLoaderCallbacks = null;
         mSearchHistorySuggestionLoaderCallback = null;
 
+        /* Cliqz Start */
         // Create callbacks before the initial loader is started
-        mCursorLoaderCallbacks = new CursorLoaderCallbacks();
+        // mCursorLoaderCallbacks = new CursorLoaderCallbacks();
+        mCliqzSearchCallbacks = new CliqzSearchCallbacks();
+        /* Cliqz End */
         loadIfVisible();
     }
 
@@ -515,7 +531,10 @@ public class BrowserSearch extends HomeFragment
 
     @Override
     protected void load() {
-        SearchLoader.init(getLoaderManager(), LOADER_ID_SEARCH, mCursorLoaderCallbacks, mSearchTerm);
+        /* Cliqz Start */
+        // SearchLoader.init(getLoaderManager(), LOADER_ID_SEARCH, mCursorLoaderCallbacks, mSearchTerm);
+        CliqzSearchLoader.init(getLoaderManager(), LOADER_ID_CLIQZ, mCliqzSearchCallbacks, mSearchTerm);
+        /* Cliqz End */
     }
 
     private void handleAutocomplete(String searchTerm, Cursor c) {
@@ -991,11 +1010,17 @@ public class BrowserSearch extends HomeFragment
     }
 
     private void restartSearchLoader() {
-        SearchLoader.restart(getLoaderManager(), LOADER_ID_SEARCH, mCursorLoaderCallbacks, mSearchTerm);
+        /* Cliqz Start */
+        CliqzHistoryLoader.restart(getLoaderManager(), LOADER_ID_SEARCH, mCliqzSearchCallbacks, mSearchTerm);
+        CliqzSearchLoader.restart(getLoaderManager(), LOADER_ID_CLIQZ, mCliqzSearchCallbacks, mSearchTerm);
+        /* Cliqz End */
     }
 
     private void initSearchLoader() {
-        SearchLoader.init(getLoaderManager(), LOADER_ID_SEARCH, mCursorLoaderCallbacks, mSearchTerm);
+        /* Cliqz Start */
+        CliqzHistoryLoader.init(getLoaderManager(), LOADER_ID_SEARCH, mCliqzSearchCallbacks, mSearchTerm);
+        CliqzSearchLoader.init(getLoaderManager(), LOADER_ID_CLIQZ, mCliqzSearchCallbacks, mSearchTerm);
+        /* Cliqz End */
     }
 
     public void filter(String searchTerm, AutocompleteHandler handler) {
@@ -1125,6 +1150,7 @@ public class BrowserSearch extends HomeFragment
         }
     }
 
+    /* Cliqz Start o/
     private class SearchAdapter extends MultiTypeCursorAdapter {
         private static final int ROW_SEARCH = 0;
         private static final int ROW_STANDARD = 1;
@@ -1222,6 +1248,7 @@ public class BrowserSearch extends HomeFragment
             }
         }
     }
+    /o Cliqz End */
 
     private TwoLinePageRow.TitleFormatter mTwoLinePageRowTitleFormatter = new TwoLinePageRow.TitleFormatter() {
         @Override
@@ -1248,6 +1275,7 @@ public class BrowserSearch extends HomeFragment
         }
     };
 
+    /* Cliqz Start o/
     private class CursorLoaderCallbacks implements LoaderCallbacks<Cursor> {
         @Override
         public Loader<Cursor> onCreateLoader(int id, Bundle args) {
@@ -1274,6 +1302,7 @@ public class BrowserSearch extends HomeFragment
             }
         }
     }
+    /o Cliqz End */
 
     private class SearchEngineSuggestionLoaderCallbacks implements LoaderCallbacks<ArrayList<String>> {
         @Override
@@ -1373,6 +1402,7 @@ public class BrowserSearch extends HomeFragment
             setSelector(isPrivate);
         }
 
+        @SuppressLint("ClickableViewAccessibility")
         @Override
         public boolean onTouchEvent(MotionEvent event) {
             if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
@@ -1414,6 +1444,122 @@ public class BrowserSearch extends HomeFragment
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
         if (TextUtils.equals(key, GeckoPreferences.PREFS_CLIQZ_TAB_BACKGROUND_ENABLED)) {
             reloadBackground();
+        }
+    }
+
+    class CliqzSearchCallbacks implements LoaderCallbacks<ArrayList<Bundle>> {
+
+        private ArrayList<Bundle> mSearchData = null;
+        private ArrayList<Bundle> mHistoryData = null;
+
+        @Override
+        public Loader<ArrayList<Bundle>> onCreateLoader(int id, Bundle args) {
+            switch (id) {
+                case LOADER_ID_CLIQZ:
+                    return CliqzSearchLoader.createInstance(getContext(), args);
+                case LOADER_ID_SEARCH:
+                    return CliqzHistoryLoader.createInstance(getContext(), args);
+            }
+            throw new RuntimeException("Invalid loader id " + id);
+        }
+
+        @Override
+        public void onLoadFinished(Loader<ArrayList<Bundle>> loader, ArrayList<Bundle> data) {
+            switch (loader.getId()) {
+                case LOADER_ID_CLIQZ:
+                    mSearchData = data;
+                    break;
+                case LOADER_ID_SEARCH:
+                    mHistoryData = data;
+                    break;
+                default:
+                    break;
+            }
+            final ArrayList<Bundle> combined =
+                    CliqzSearch.combineSearchAndHistory(mSearchData, mHistoryData);
+            mAdapter.setData(combined);
+        }
+
+        @Override
+        public void onLoaderReset(Loader<ArrayList<Bundle>> loader) {
+            final int id = loader.getId();
+            switch (id) {
+                case LOADER_ID_CLIQZ:
+                    mSearchData = null;
+                    break;
+                case LOADER_ID_SEARCH:
+                    mHistoryData = null;
+                    break;
+                default:
+                    mSearchData = null;
+                    mHistoryData = null;
+            }
+            final ArrayList<Bundle> data =
+                    CliqzSearch.combineSearchAndHistory(mSearchData, mHistoryData);
+            mAdapter.setData(data);
+        }
+    }
+
+    private class CliqzSearchAdapter extends BaseAdapter {
+
+        private ArrayList<Bundle> mData = new ArrayList<>();
+        private final LayoutInflater inflater;
+
+        CliqzSearchAdapter(Context context) {
+            inflater = LayoutInflater.from(context);
+        }
+
+        @Override
+        public boolean hasStableIds() {
+            return false;
+        }
+
+        @Override
+        public int getCount() {
+            return mData.size();
+        }
+
+        @Override
+        public Object getItem(int position) {
+            return mData.get(position);
+        }
+
+        @Override
+        public long getItemId(int position) {
+            return position;
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            if (convertView == null) {
+                convertView = inflater.inflate(R.layout.bookmark_item_row, parent, false);
+                convertView.setOnClickListener(v -> {
+                    final TwoLinePageRow row = (TwoLinePageRow) v;
+                    final String url = row.getUrl();
+                    if (mUrlOpenListener != null && url != null) {
+                        mUrlOpenListener.onUrlOpen(url, EnumSet.noneOf
+                                (HomePager.OnUrlOpenListener.Flags.class));
+                    }
+                });
+            }
+
+            final Bundle data = mData.get(position);
+            final TwoLinePageRow twoLinePageRow = (TwoLinePageRow) convertView;
+            twoLinePageRow.update(data.getString(Keys.TITLE), data.getString(Keys.URL));
+            switch (data.getInt(Keys.TYPE)) {
+                case Types.LOCAL_HISTORY:
+                    twoLinePageRow.updateStatusIcon(true, false);
+                    break;
+                default:
+                    twoLinePageRow.updateStatusIcon(false, false);
+            }
+            return convertView;
+        }
+
+
+        public void setData(ArrayList<Bundle> data) {
+            mData = data;
+            notifyDataSetChanged();
         }
     }
     /* Cliqz end */

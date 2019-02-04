@@ -1,5 +1,12 @@
 # Stefano's developing mozconfig file, do not use this for production
 
+# Android Studio doesn't know about the CLIQZ_TARGET, this is a simple hack
+# to have some of those variables loaded from a file
+if [ -f "${topsrcdir}/mozconfig.override" ]
+then
+    . "${topsrcdir}/mozconfig.override"
+fi
+
 # Branding
 if [ -z "${CLIQZ_BRANDING}" ]
 then

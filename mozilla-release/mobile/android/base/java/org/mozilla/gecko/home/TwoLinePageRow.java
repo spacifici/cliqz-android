@@ -83,9 +83,7 @@ public class TwoLinePageRow extends ThemedLinearLayout
 
         /* Cliqz Start */
         mSwitchToTabIcon = NO_ICON;
-        /* Cliqz End */
         mShowIcons = true;
-        /* Cliqz Start */
         mFavicon = (ImageView) findViewById(R.id.icon);
         /* Cliqz End */
     }
@@ -180,7 +178,8 @@ public class TwoLinePageRow extends ThemedLinearLayout
     }
     /* Cliqz End */
 
-    private void updateStatusIcon(boolean isBookmark, boolean isReaderItem) {
+    // Cliqz - Temporary package visible only for the search prototype
+    /* private */ void updateStatusIcon(boolean isBookmark, boolean isReaderItem) {
         if (isReaderItem) {
             mStatusIcon.setImageResource(R.drawable.status_icon_readercache);
         } else if (isBookmark) {
