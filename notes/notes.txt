@@ -1,5 +1,5 @@
-Here are the release notes, can you add this?
-Dear Ghostery users! A new version is ready:
-* browser starts faster
-* private search is smoother
-* Lite theme - swap theme anytime in the settings
+A new version is available:
+* fixed bugs that caused the app to crash
+* quick way to delete all history
+* easy way to go back to Ghost Search results (hit the back button)
+* better overview for Ghost Search results due to new design
