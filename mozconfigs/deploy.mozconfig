@@ -1,9 +1,6 @@
 # Build Firefox for Android:
-# Add MOZILLA_OFFICIAL flag to proguard the artifacts
-export MOZILLA_OFFICIAL=1
-
-# Android Targets: 'i686-linux-android' or 'arm-linux-androideabi'
 ac_add_options --enable-application=mobile/android
+# Android Targets: 'i686-linux-android', 'arm-linux-androideabi' or 'aarch64-linux-android'
 ac_add_options --target=$ANDROID_TARGET
 ac_add_options --with-android-min-sdk=$ANDROID_MIN_SDK
 ac_add_options --enable-optimize
@@ -22,3 +19,7 @@ ac_add_options --with-branding=mobile/android/branding/$BRAND
 
 # l10n support
 ac_add_options --with-l10n-base=$topsrcdir/../l10n
+
+# MOZ Settings
+# Add MOZILLA_OFFICIAL flag to proguard the artifacts
+export MOZILLA_OFFICIAL=1

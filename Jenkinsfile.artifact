@@ -56,6 +56,9 @@ def build(Map m){
                     def baseImageName = "browser-f/android:${dockerTag}"
                     docker.withRegistry('https://141047255820.dkr.ecr.us-east-1.amazonaws.com') {
                         docker.image("${baseImageName}").inside {
+                            stage('Build react-native') {
+                                cliqz.buildCliqzReactNative("cliqz")
+                            }
                             stage('Build Artifacts') {
                                 apk = cliqz.buildBrowser("${target}", minSdk, "cliqz", "artifact")
                             }

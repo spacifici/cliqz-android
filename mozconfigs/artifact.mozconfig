@@ -1,21 +1,25 @@
 # Build Firefox for Android:
 ac_add_options --enable-application=mobile/android
+# Android Targets: 'i686-linux-android', 'arm-linux-androideabi' or 'aarch64-linux-android'
 ac_add_options --target=$ANDROID_TARGET
+ac_add_options --with-android-min-sdk=$ANDROID_MIN_SDK
+ac_add_options --enable-optimize
+ac_add_options --disable-debug
 
 # With the following Android SDK and NDK:
 ac_add_options --with-android-sdk=$ANDROID_HOME
 ac_add_options --with-android-ndk=$ANDROID_NDK
 
+# Available Brands: 'cliqz', 'cliqz-alpha', 'ghostery' & 'ghostery-alpha'
 # Write build artifacts to:
-mk_add_options MOZ_OBJDIR=./objdir-frontend-android/
+mk_add_options MOZ_OBJDIR=./objdir-frontend-android/$BRAND
 
 # Branding
-ac_add_options --with-branding=mobile/android/branding/cliqz
-
-ac_add_options --enable-optimize
-ac_add_options --disable-debug
+ac_add_options --with-branding=mobile/android/branding/$BRAND
 
 # MOZ Settings
+# Add MOZILLA_OFFICIAL flag to proguard the artifacts
+export MOZILLA_OFFICIAL=1
 export MOZ_AUTOMATION_BUILD_SYMBOLS=1
 export MOZ_AUTOMATION_L10N_CHECK=0
 export MOZ_AUTOMATION_PACKAGE=1
@@ -25,5 +29,4 @@ export MOZ_AUTOMATION_PACKAGE_GENERATED_SOURCES=1
 export MOZ_AUTOMATION_UPLOAD=0
 export MOZ_SIMPLE_PACKAGE_NAME=target
 export MOZ_TELEMETRY_REPORTING=1
-export MOZILLA_OFFICIAL=1
 export MOZ_TELEMETRY_ON_BY_DEFAULT=1
