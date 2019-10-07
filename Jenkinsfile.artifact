@@ -10,9 +10,15 @@ properties([
 def matrix = [
         'x86':[
             'target':'i686-linux-android',
+            'minSdk':16,
         ],
         'arm':[
             'target':'arm-linux-androideabi',
+            'minSdk':16,
+        ],
+        'arm64':[
+            'target':'aarch64-linux-android',
+            'minSdk':21,
         ],
     ]
 
@@ -20,10 +26,11 @@ def build(Map m){
     def target = m.target
     def nodeLabel = 'us-east-1 && ubuntu && docker && !gpu'
     def arch = m.name
+    def minSdk = m.minSdk
 
     return {
         node(nodeLabel) {
-            def version = ((("https://raw.githubusercontent.com/cliqz-oss/cliqz-android/master/mozilla-release/browser/config/version.txt").toURL()).getText()).trim()
+            def version = ((("https://raw.githubusercontent.com/ghostery/browser-android/master/mozilla-release/browser/config/version.txt").toURL()).getText()).trim()
             def url = "https://repository.cliqz.com/dist/android/artifacts/${version}"
             def createTarget = false
 
@@ -50,7 +57,7 @@ def build(Map m){
                     docker.withRegistry('https://141047255820.dkr.ecr.us-east-1.amazonaws.com') {
                         docker.image("${baseImageName}").inside {
                             stage('Build Artifacts') {
-                                apk = cliqz.buildBrowser("${target}", "cliqz", "artifact")
+                                apk = cliqz.buildBrowser("${target}", minSdk, "cliqz", "artifact")
                             }
                             stage('Upload to S3'){
                                 sh "cp build/${apk} cliqz-target.apk"
@@ -89,10 +96,12 @@ def build(Map m){
         }
     }
 }
+
 def stepsForParallelBuilds = helpers.entries(matrix).collectEntries{
     [("ARCH: ${it[0]}"):build(
         name: it[0],
-        target: it[1]['target']
+        target: it[1]['target'],
+        minSdk: it[1]['minSdk']
     )]
 }
 
